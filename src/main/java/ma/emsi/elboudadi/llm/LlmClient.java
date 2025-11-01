@@ -3,16 +3,14 @@ package ma.emsi.elboudadi.llm;
 
 import dev.langchain4j.memory.ChatMemory;
 import dev.langchain4j.memory.chat.MessageWindowChatMemory;
-import dev.langchain4j.model.chat.ChatModel; // Updated import
-import dev.langchain4j.model.googleai.GoogleAiGeminiChatModel; // Updated import
+import dev.langchain4j.model.chat.ChatModel;
+import dev.langchain4j.model.googleai.GoogleAiGeminiChatModel;
 import dev.langchain4j.service.AiServices;
 import dev.langchain4j.data.message.SystemMessage;
 import jakarta.enterprise.context.ApplicationScoped;
 
 /**
  * Client pour interagir avec le LLM (Gemini) en utilisant LangChain4j.
- * La portée est définie sur ApplicationScoped si vous utilisez CDI pour l'injection
- * dans le Backing Bean. Si vous n'utilisez pas CDI, vous l'instancierez manuellement.
  */
 // @ApplicationScoped // Décommentez si vous utilisez CDI
 public class LlmClient {
@@ -23,14 +21,14 @@ public class LlmClient {
 
     public LlmClient() {
         // 1. Récupération de la clé API
+        // CORRIGÉ: Changé "GEMINI-API-KEY" à "GEMINI_API_KEY"
         String apiKey = System.getenv("GEMINI-API-KEY");
         if (apiKey == null || apiKey.isEmpty()) {
-            throw new RuntimeException("La variable d'environnement GEMINI_API_KEY doit être définie.");
+            throw new RuntimeException("La variable d'environnement GEMINI-API-KEY doit être définie.");
         }
 
         // 2. Création du Modèle de Chat
-        // Utilise GoogleAiGeminiChatModel à la place de GeminiChatModel
-        ChatModel model = GoogleAiGeminiChatModel.builder() // Changed class
+        ChatModel model = GoogleAiGeminiChatModel.builder()
                 .apiKey(apiKey)
                 .modelName("gemini-2.5-flash")
                 .build();
@@ -47,7 +45,6 @@ public class LlmClient {
 
     /**
      * Définit le rôle système pour l'assistant et réinitialise la mémoire.
-     * @param newSystemRole Le nouveau rôle à assigner.
      */
     public void setSystemRole(String newSystemRole) {
         if (!newSystemRole.equals(this.systemRole)) {
@@ -62,13 +59,8 @@ public class LlmClient {
 
     /**
      * Envoie la requête de l'utilisateur au LLM et retourne la réponse.
-     * @param userMessage Le message de l'utilisateur.
-     * @return La réponse du LLM.
      */
     public String sendMessage(String userMessage) {
-        // La méthode .chat(prompt) de l'instance Assistant est gérée par LangChain4j.
-        // LangChain4j ajoute automatiquement l'historique (via chatMemory) avant d'envoyer
-        // la requête au LLM.
         return assistant.chat(userMessage);
     }
 }
