@@ -23,7 +23,7 @@ public class LlmClient {
 
     public LlmClient() {
         // 1. Récupération de la clé API
-        String apiKey = System.getenv("GEMINI_API_KEY");
+        String apiKey = System.getenv("GEMINI-API-KEY");
         if (apiKey == null || apiKey.isEmpty()) {
             throw new RuntimeException("La variable d'environnement GEMINI_API_KEY doit être définie.");
         }
