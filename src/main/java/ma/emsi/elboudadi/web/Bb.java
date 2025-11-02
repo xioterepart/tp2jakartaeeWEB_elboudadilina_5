@@ -1,4 +1,3 @@
-// Fichier : src/main/java/ma/emsi/elboudadi/web/Bb.java
 package ma.emsi.elboudadi.web;
 
 import ma.emsi.elboudadi.llm.LlmClient;
@@ -13,33 +12,38 @@ import java.util.stream.Collectors;
 
 /**
  * Backing Bean (Contrôleur) pour l'interface de chat JSF.
- * Utilise la portée ViewScoped pour maintenir l'historique de la conversation.
  */
-@Named("bb") // Nom d'accès dans JSF (e.g., #{bb.question})
-@ViewScoped // Portée requise pour maintenir la conversation
+@Named("bb")
+@ViewScoped
 public class Bb implements Serializable {
 
     private String question;
     private List<Message> conversation;
+    // Remarque : LlmClient DOIT être géré comme un bean CDI ou injecté,
+    // mais ici on l'instancie manuellement pour simplifier la démo.
     private LlmClient llmClient;
 
-    // Rôle système choisi par l'utilisateur (valeur par défaut)
-    private String selectedSystemRole = "You are a helpful and friendly assistant.";
-    // Mémoriser le dernier rôle envoyé pour éviter de le renvoyer à chaque requête
+    private String selectedSystemRole;
     private String lastSystemRoleSent = null;
 
-    // Liste des options de rôle à afficher dans le selectOneMenu JSF
     private List<String> availableRoles;
 
     @PostConstruct
     public void init() {
-        // Initialisation des composants
+        // Définition des rôles disponibles (TRADUCTION APPLIQUÉE)
+        availableRoles = new ArrayList<>();
+        availableRoles.add("Tu es un assistant serviable et amical.");
+        availableRoles.add("Tu es un poète spirituel, réponds à toutes les questions en vers.");
+        availableRoles.add("Tu es un relecteur technique strict, concentré sur le code Java.");
+        availableRoles.add("Tu es un traducteur du français vers l'anglais.");
+
+        // Valeur par défaut
+        this.selectedSystemRole = availableRoles.get(0);
+
         try {
             this.llmClient = new LlmClient(); // Instancie LlmClient
         } catch (RuntimeException e) {
-            // Gérer le cas où la clé API est manquante
             System.err.println(e.getMessage());
-            // Ajoute un message d'erreur initial pour l'utilisateur
             this.conversation = new ArrayList<>();
             this.conversation.add(new Message("System Error", "LLM Client not initialized. Check your GEMINI_API_KEY environment variable."));
             this.llmClient = null;
@@ -48,59 +52,46 @@ public class Bb implements Serializable {
         if (this.conversation == null) {
             this.conversation = new ArrayList<>();
         }
-
-        // Configuration des rôles disponibles pour la liste déroulante JSF
-        availableRoles = new ArrayList<>();
-        availableRoles.add("You are a helpful and friendly assistant.");
-        availableRoles.add("You are a witty poet, answer all questions in verse.");
-        availableRoles.add("You are a strict technical reviewer, focused on Java code.");
-        availableRoles.add("You are a translator from French to English.");
     }
 
     /**
-     * Méthode appelée lorsque l'utilisateur clique sur le bouton "Nouveau chat".
-     * CORRIGÉ: Ajouté la méthode manquante.
+     * Réinitialise la conversation et l'état de la page.
      */
     public String nouveauChat() {
         this.conversation.clear();
         this.question = null;
-        // Réinitialise le rôle système pour qu'il soit renvoyé lors de la prochaine requête.
+        // Permet de choisir un nouveau rôle
         this.lastSystemRoleSent = null;
-        return null; // Reste sur la même page
+        return null;
     }
 
     /**
-     * Méthode appelée lorsque l'utilisateur clique sur le bouton "Envoyer".
+     * Envoie la question au LLM, gère le rôle système et met à jour l'historique.
      */
     public void envoyer() {
-        if (llmClient == null) {
-            return;
-        }
-        if (question == null || question.trim().isEmpty()) {
+        if (llmClient == null || question == null || question.trim().isEmpty()) {
             return;
         }
 
         String userQuestion = question.trim();
 
-        // 1. Vérifier et définir le Rôle Système
-        // CORRIGÉ: Utilise getRoleSysteme() au lieu de l'ancienne méthode getSelectedSystemRole()
+        // 1. Initialiser ou changer le Rôle Système
         if (lastSystemRoleSent == null || !getRoleSysteme().equals(lastSystemRoleSent)) {
             llmClient.setSystemRole(getRoleSysteme());
             lastSystemRoleSent = getRoleSysteme();
         }
 
         try {
-            // 2. Ajouter le message de l'utilisateur à l'historique
+            // 2. Ajouter la question à l'historique
             conversation.add(new Message("User", userQuestion));
 
-            // 3. Envoyer la question au LLM via le client
+            // 3. Envoyer la question au LLM (LangChain4j gère l'historique via ChatMemory)
             String llmResponse = llmClient.sendMessage(userQuestion);
 
-            // 4. Ajouter la réponse du LLM à l'historique
+            // 4. Ajouter la réponse à l'historique
             conversation.add(new Message("LLM", llmResponse));
 
         } catch (Exception e) {
-            // Gérer les erreurs de communication API
             conversation.add(new Message("System Error", "Error communicating with LLM: " + e.getMessage()));
             e.printStackTrace();
         } finally {
@@ -109,12 +100,8 @@ public class Bb implements Serializable {
         }
     }
 
-    // --- Getters et Setters pour la Vue JSF ---
+    // --- Getters et Setters ---
 
-    /**
-     * Getter/Setter utilisé par l'expression JSF #{bb.roleSysteme}
-     * CORRIGÉ: Ajouté pour mapper la propriété JSF `roleSysteme` au champ `selectedSystemRole`.
-     */
     public String getRoleSysteme() {
         return selectedSystemRole;
     }
@@ -123,32 +110,19 @@ public class Bb implements Serializable {
         this.selectedSystemRole = roleSysteme;
     }
 
-    /**
-     * Renvoie le flag pour désactiver le menu après la première requête.
-     * CORRIGÉ: Ajouté la méthode manquante isRoleSystemeChangeable().
-     */
     public boolean isRoleSystemeChangeable() {
-        // Le rôle est changeable tant qu'aucune requête n'a été envoyée
         return lastSystemRoleSent == null;
     }
 
-    /**
-     * Getter utilisé par l'expression JSF #{bb.rolesSysteme}
-     * CORRIGÉ: Ajouté pour mapper la propriété JSF `rolesSysteme` au champ `availableRoles`.
-     */
     public List<String> getRolesSysteme() {
         return availableRoles;
     }
 
-    /**
-     * Renvoie la dernière réponse de l'LLM, formatée pour l'affichage dans 'reponse'.
-     * CORRIGÉ: Ajouté la méthode manquante getReponse().
-     */
+    // Renvoie la dernière réponse pour la zone "reponse"
     public String getReponse() {
         if (conversation.isEmpty()) {
             return "";
         }
-        // Cherche le dernier message du LLM
         for (int i = conversation.size() - 1; i >= 0; i--) {
             Message msg = conversation.get(i);
             if ("LLM".equals(msg.getSender())) {
@@ -158,10 +132,7 @@ public class Bb implements Serializable {
         return "";
     }
 
-    /**
-     * Renvoie la conversation entière, formatée pour l'affichage dans 'conversation'.
-     * CORRIGÉ: Ajouté la méthode manquante getConversation() qui retourne un String.
-     */
+    // Renvoie la conversation complète pour la zone "conversation"
     public String getConversation() {
         return conversation.stream()
                 .map(msg -> msg.getSender() + ": " + msg.getContent())

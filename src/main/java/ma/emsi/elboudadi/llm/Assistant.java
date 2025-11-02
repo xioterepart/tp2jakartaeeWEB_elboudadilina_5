@@ -1,11 +1,13 @@
 package ma.emsi.elboudadi.llm;
 
-// Cette interface définit l'interaction simple de chat pour LangChain4j.
+/**
+ * Interface utilisée par LangChain4j pour définir l'interaction de base avec le LLM.
+ * LangChain4j fournit automatiquement l'implémentation (proxy).
+ */
 public interface Assistant {
-
     /**
-     * Envoie un prompt au LLM et retourne la réponse.
-     * LangChain4j implémentera automatiquement cette méthode.
+     * Envoie un prompt à l'assistant et reçoit la réponse.
+     * LangChain4j gère l'historique (ChatMemory) et les SystemMessages.
      * @param prompt La question de l'utilisateur.
      * @return La réponse du LLM.
      */

@@ -1,4 +1,3 @@
-// Fichier : src/main/java/ma/emsi/elboudadi/llm/LlmClient.java
 package ma.emsi.elboudadi.llm;
 
 import dev.langchain4j.memory.ChatMemory;
@@ -7,60 +6,63 @@ import dev.langchain4j.model.chat.ChatModel;
 import dev.langchain4j.model.googleai.GoogleAiGeminiChatModel;
 import dev.langchain4j.service.AiServices;
 import dev.langchain4j.data.message.SystemMessage;
-import jakarta.enterprise.context.ApplicationScoped;
+
+import java.time.Duration;
 
 /**
- * Client pour interagir avec le LLM (Gemini) en utilisant LangChain4j.
+ * Gère l'interaction avec l'API Gemini via LangChain4j.
+ * C'est la couche métier qui est appelée par le Backing Bean (Bb).
  */
-// @ApplicationScoped // Décommentez si vous utilisez CDI
 public class LlmClient {
 
-    private String systemRole;
-    private Assistant assistant;
-    private ChatMemory chatMemory;
+    private final Assistant assistant;
+    private final ChatMemory chatMemory;
+    private final ChatModel chatModel;
 
     public LlmClient() {
-        // 1. Récupération de la clé API
-        // CORRIGÉ: Changé "GEMINI-API-KEY" à "GEMINI_API_KEY"
+        // 1. Récupérer la clé API
         String apiKey = System.getenv("GEMINI-API-KEY");
         if (apiKey == null || apiKey.isEmpty()) {
-            throw new RuntimeException("La variable d'environnement GEMINI-API-KEY doit être définie.");
+            throw new RuntimeException("GEMINI_API_KEY environment variable is not set.");
         }
 
-        // 2. Création du Modèle de Chat
-        ChatModel model = GoogleAiGeminiChatModel.builder()
+        // 2. Créer le modèle de Chat
+        this.chatModel = GoogleAiGeminiChatModel.builder()
                 .apiKey(apiKey)
-                .modelName("gemini-2.5-flash")
+                .modelName("gemini-2.5-flash") // Modèle rapide et polyvalent
+                .temperature(0.7) // Créativité
+                .timeout(Duration.ofSeconds(15))
+                .logRequestsAndResponses(true) // Utile pour le débogage
                 .build();
 
-        // 3. Initialisation de la Mémoire (max 10 messages)
+        // 3. Configurer la mémoire de conversation
         this.chatMemory = MessageWindowChatMemory.withMaxMessages(10);
 
-        // 4. Création de l'Assistant via AiServices
+        // 4. Créer l'Assistant (Service IA)
         this.assistant = AiServices.builder(Assistant.class)
-                .chatModel(model)
+                .chatModel(chatModel)
                 .chatMemory(chatMemory)
                 .build();
     }
 
     /**
-     * Définit le rôle système pour l'assistant et réinitialise la mémoire.
+     * Définit le rôle système pour la conversation.
+     * @param role Le rôle à appliquer.
      */
-    public void setSystemRole(String newSystemRole) {
-        if (!newSystemRole.equals(this.systemRole)) {
-            // Le rôle a changé, on vide la mémoire pour commencer une nouvelle conversation
-            this.chatMemory.clear();
-            this.systemRole = newSystemRole;
+    public void setSystemRole(String role) {
+        // Vider la mémoire car le rôle change le contexte entièrement
+        chatMemory.clear();
 
-            // Ajoute le SystemMessage à la mémoire pour le prendre en compte dans la prochaine requête
-            this.chatMemory.add(SystemMessage.from(newSystemRole));
-        }
+        // Ajouter le nouveau rôle comme SystemMessage dans la mémoire
+        chatMemory.add(SystemMessage.from(role));
     }
 
     /**
-     * Envoie la requête de l'utilisateur au LLM et retourne la réponse.
+     * Envoie le message au LLM. LangChain4j gère l'ajout à la ChatMemory.
+     * @param message Le message de l'utilisateur.
+     * @return La réponse générée par le LLM.
      */
-    public String sendMessage(String userMessage) {
-        return assistant.chat(userMessage);
+    public String sendMessage(String message) {
+        return assistant.chat(message);
     }
 }
